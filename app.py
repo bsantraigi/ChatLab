@@ -1,5 +1,5 @@
 import streamlit as st
-from transformers import GPT2Tokenizer, GPT2LMHeadModel, AutoTokenizer, AutoModel
+from transformers import GPT2Tokenizer, GPT2LMHeadModel, AutoTokenizer, AutoModel, T5ForConditionalGeneration, T5Tokenizer
 
 import os
 import openai
@@ -19,9 +19,17 @@ if model_name != "openai/chatgpt":
     }
     model_name = converter[model_name]
 
-    # Load the GPT-2 model and tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModel.from_pretrained(model_name)
+    if model_name.startswith("gpt2"):
+        # Load the GPT-2 model and tokenizer
+        tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+        model = GPT2LMHeadModel.from_pretrained(model_name)
+    elif model_name.startswith("google"):
+        # Load the T5 model and tokenizer
+        tokenizer = T5Tokenizer.from_pretrained(model_name)
+        model = T5ForConditionalGeneration.from_pretrained(model_name)
+    # # Load the GPT-2 model and tokenizer
+    # tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # model = AutoModel.from_pretrained(model_name)
 
     # Set the maximum length of input text to be used for generating response
     MAX_LENGTH = 256
