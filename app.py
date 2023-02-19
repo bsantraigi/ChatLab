@@ -11,6 +11,26 @@ model_name = st.sidebar.selectbox("Model", ("Select a model", "gpt2", "flan-t5-b
 if model_name == "Select a model":
     st.stop()
 
+# Show saved sessions
+st.sidebar.title("Saved sessions")
+# Retrieve the saved sessions from sqlite database
+import sqlite3
+conn = sqlite3.connect('sessions.db')
+c = conn.cursor()
+c.execute("SELECT * FROM sessions")
+sessions = c.fetchall()
+conn.close()
+# Show the saved sessions in a dropdown
+session_name = st.sidebar.selectbox("Session", ("Select a session",) + tuple([session[0] for session in sessions]))
+if session_name != "Select a session":
+    # Load the conversation history from the selected session
+    conn = sqlite3.connect('sessions.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM sessions WHERE name=?", (session_name,))
+    session = c.fetchone()
+    conn.close()
+    print(session)
+
 if model_name != "openai/chatgpt":
     # Convert model name to huggingface model name
     converter = {
@@ -78,7 +98,7 @@ st.session_state
 
 # Display the previous conversation history
 for message in st.session_state.conversation_history:
-    st.write(message)
+    history_text = st.write(message)
 
 # Get the user input
 input_text = st.text_area("You:")
@@ -94,3 +114,29 @@ if input_text:
     st.session_state.conversation_history.append(f"Agent: {response}")
     st.write(f"{model_name}: " + response)
 
+# Save the conversation history
+if st.button("Save session"):
+    # Use the model to create a name for the session
+    name_prompt = """Suggest a name for this session:
+    """
+    name_prompt += "\n".join(st.session_state.conversation_history)
+    name_prompt += "\nName:"
+    session_name = generate_response(name_prompt)
+    # Upto 5 words for session name
+    session_name = " ".join(session_name.split()[:5])
+
+    # If session name is empty, use "Session {row_id}"
+    if not session_name.strip():
+        conn = sqlite3.connect('sessions.db')
+        c = conn.cursor()
+        c.execute("SELECT * FROM sessions")
+        sessions = c.fetchall()
+        conn.close()
+        session_name = f"Session {len(sessions) + 1}"
+
+    # Save the conversation history to sqlite database
+    conn = sqlite3.connect('sessions.db')
+    c = conn.cursor()
+    # id (autoincrement), name, conversation_history, created_at
+    c.execute("INSERT INTO sessions VALUES (NULL, ?, ?, datetime('now'))", (session_name, "\n".join(st.session_state.conversation_history)))
+    conn.commit()
